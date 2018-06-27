@@ -2,6 +2,7 @@ library(httr)
 library(jsonlite)
 library(ggplot2)
 library(cowplot)
+library(purrr)
 
 #intent is to pass the getUserData response to this function directly
 #returns stats for the 10 most recent matches
