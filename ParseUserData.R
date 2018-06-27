@@ -18,7 +18,8 @@ parseUserData<-function(response){
   playtype<-flatten_chr(map(recent,function(x) x$playlist))
   trnchange<-flatten_dbl(map(recent,function(x) x$trnRatingChange))
   trnrating<-flatten_dbl(map(recent,function(x) x$trnRating))
-  df<-tibble::tibble(kills=kills,score=score,ptype=playtype,trnchange=trnchange,trnrating=trnrating,matches=1:10)
+  gid<-flatten_int(map(recent,function(x) x$id))
+  df<-tibble::tibble(game_id=gid,kills=kills,score=score,ptype=playtype,trnchange=trnchange,trnrating=trnrating,matches=1:10)
   return(df)
 }
 
