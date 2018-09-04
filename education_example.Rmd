@@ -1,0 +1,111 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(purrr)
+setwd('C:/Users/thoma/Desktop/EducationOutreach/')
+source('getUserData.R')
+source('ParseUserData.R')
+res<-getUserData('ninja','pc','your_fortnite_tracker_api')
+res_df<-parseUserData(res)
+res_ls<-jsonlite::fromJSON(content(res, "text"), simplifyVector = FALSE)
+recent<-res_ls$recentMatches
+kills<-flatten_int(map(recent,function(x) x$kills))
+score<-flatten_dbl(map(recent,function(x) x$score))
+playtype<-flatten_chr(map(recent,function(x) x$playlist))
+trnchange<-flatten_dbl(map(recent,function(x) x$trnRatingChange))
+trnrating<-flatten_dbl(map(recent,function(x) x$trnRating))
+df<-tibble::tibble(kills=kills,score=score,ptype=playtype,trnchange=trnchange,trnrating=trnrating,matches=1:10)
+
+#first place to look
+
+library(ggplot2)
+library(cowplot)
+p1<-ggplot(aes(kills),data=df)+geom_histogram()
+p2<-ggplot(aes(score),data=df)+geom_histogram()
+p3<-plot_grid(p1,p2)
+
+library(rvest)
+url<-"https://fortnitetracker.com/leaderboards/pc/Top1?mode=all"
+url1<-"https://fortnitetracker.com/leaderboards/"
+url2<-"/Top1?mode=all"
+webp<-read_html(url)
+rank_data_html <- html_nodes(webp,'.trn-lb-entry__name')
+
+rank_names<-html_text(rank_data_html)
+
+
+```
+
+```{r-mongo}
+
+library(mongolite)
+m<-mongo(collection="fortnite_stats")
+m$insert(res_ls)
+source("topPlayers.R")
+txbox<-getTopUsers('xbox',1)
+
+#could make this nicer with maps, but ehhh
+txbox<-c()
+for(i in 1:3){
+  txbox<-c(txbox,getTopUsers('xbox',i))
+  Sys.sleep(5)
+}
+
+Sys.sleep(30)
+
+tpc<-c()
+for(i in 1:3){
+  tpc<-c(tpc,getTopUsers('pc',i))
+  Sys.sleep(5)
+}
+
+Sys.sleep(30)
+
+tpsn<-c()
+for(i in 1:3){
+  tpsn<-c(tpsn,getTopUsers('psn',i))
+  Sys.sleep(5)
+}
+
+collect_pdata<-function(pid,platform=c("xbox","pc","psn")){
+  res<-getUserData(pid,platform,'your_fortnite_tracker_api')
+  df<-parseUserData(res)
+  Sys.sleep(5)
+  return(df)
+}
+
+safely_collect<-safely(collect_pdata)
+
+txbox_df<-map2_df(txbox,rep("xb1",length(txbox)),collect_pdata(.x,.y))
+
+tpcl<-vector(mode="list",length=300)
+for(i in 1:300){
+  pid<-tpc[i]
+  tpcl[i]<-safely_collect(pid,'pc')
+}
+
+tpc_df<-bind_rows(tpcl)
+
+tpsnl<-vector(mode="list",length=300)
+for(i in 1:300){
+  pid<-tpsn[i]
+  tpsnl[i]<-safely_collect(pid,'psn')
+}
+
+tpsn_df<-bind_rows(tpsnl)
+
+#dunno why this is erroring out
+tpc_df<-map2_dfr(tpc,rep("pc",length(tpc)),~safely_collect(.x,.y))
+
+tpsn_df<-map2_df(tpsn,rep("psn",length(tpsn)),~collect_pdata(.x,.y))
+
+fortnite_df <- bind_rows(tpc_df,tpsn_df)
+write_csv(fortnite_df,"fortnite.csv")
+```

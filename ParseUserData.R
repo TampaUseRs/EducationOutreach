@@ -20,7 +20,10 @@ parseUserData<-function(response){
   trnchange<-flatten_dbl(map(recent,function(x) x$trnRatingChange))
   trnrating<-flatten_dbl(map(recent,function(x) x$trnRating))
   gid<-flatten_int(map(recent,function(x) x$id))
-  df<-tibble::tibble(game_id=gid,kills=kills,score=score,ptype=playtype,trnchange=trnchange,trnrating=trnrating,matches=1:10)
+  res_ls$epicUserHandle
+  res_ls$platformName
+  df<-tibble::tibble(player_name=rep(res_ls$epicUserHandle,10),platform=rep(res_ls$platformName,10),game_id=gid,kills=kills,
+                     score=score,ptype=playtype,trnchange=trnchange,trnrating=trnrating,matches=1:10)
   return(df)
 }
 
